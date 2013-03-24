@@ -1,7 +1,0 @@
-.ncb
-.suo
-.CSDOM
-objchk
-objfre
-buildchk
-buildfre
