@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project basedir="." default="build" name="GenesisII">
+
+	<!-- Properties -->
+	<property environment="env"/>
+	<property file="${basedir}/build.properties"/>
+	<property name="project.dir" value="${basedir}"/>
+
+	<condition property="wsdl.source.prefix" value=""
+		else="file:///">
+		<matches string="${java.specification.version}" pattern="^1\.5$"/>
+	</condition>
+
+	<!-- Static Class paths -->
+	<path id="appmanager.classpath">
+		<fileset dir="${appmanager.home}" includes="**/app-manager.jar"/>
+	</path>
+
+	<path id="ant.classpath">
+		<fileset dir="${ant.home.override}" includes="**/*.jar"/>
+	</path>
+
+	<path id="jfreechart.classpath">
+		<fileset dir="${jfreechart.home}" includes="**/*.jar"/>
+	</path>
+
+	<path id="jetty.classpath">
+		<fileset dir="${jetty.home}" includes="**/*.jar"/>
+	</path> 
+
+	<path id="gffs-security.classpath">
+		<fileset dir="${ext.dir}" includes="gffs-security*.jar"/>
+		<fileset dir="${ext.dir}" includes="gffs-basics*.jar"/>
+	</path> 
+
+	<path id="axis.classpath">
+			<fileset dir="${axis.home}" includes="**/*.jar"/>
+	</path>
+
+	<path id="bundles.classpath">
+		<fileset dir="${bundles.home}" includes="bundle-*.jar"/>
+		<fileset dir="${bundles.home}" includes="com.jcraft.jsch*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.eclipse.osgi*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.apache.commons.logging*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.apache.xalan*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.apache.xml.serializer*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.apache.xerces*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.apache.commons.lang*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.apache.log4j*.jar"/>
+		<fileset dir="${bundles.home}" includes="org.slf4j*.jar"/>
+	</path>
+
+	<path id="ext.classpath">
+		<fileset dir="${ext.dir}" includes="*.jar"/>
+	</path>
+
+	<path id="project.classpath">
+		<pathelement location="${obj.dir}"/>
+		<pathelement location="${generated.obj.dir}"/>
+		<path refid="ant.classpath"/>
+		<path refid="jfreechart.classpath"/>
+		<path refid="jetty.classpath"/>
+		<path refid="appmanager.classpath"/>
+		<path refid="axis.classpath"/>
+		<path refid="ext.classpath"/>
+		<path refid="bundles.classpath"/>
+	</path>
+			
+	<!-- Imports -->	
+	<import file="${basedir}/init.build.xml"/>
+	<import file="${scripts.dir}/scripts.build.xml"/>
+	<import file="${lib.dir}/lib.build.xml"/>
+	<import file="${src.dir}/jni/vcgrJniLibs.build.xml"/>
+
+	<!-- Build Targets -->
+	<target name="build" depends="announce,jars,lib-setup,scripts,deployments,run.unit.tests"/>
+
+	<target name="announce" >
+		<exec executable="java">
+		<arg value="-version"/>
+		</exec>
+	</target>
+
+	<target name="jars" depends="genii.container.jar,genii.client.jar,ogrsh.jar,genii.ws.jar,genii.wsdl.jar,genii.dpages.jars"/>
+
+	<target name="deployments" depends="generate.ws.source">
+		<copy todir="${deployments.dir}/default/services">
+			<fileset dir="${basedir}/services" includes="**/*.wsdd"/>
+		</copy>
+	</target>
+
+	<target name="genii.container.jar" depends="genii.compile">
+		<jar destfile="${lib.dir}/GenesisII-container.jar">
+			<fileset dir="${obj.dir}">
+				<include name="edu/virginia/vcgr/genii/container/**/*"/>
+			</fileset>
+		</jar>
+	</target>
+
+	<target name="genii.dpages.jars" depends="pages.dar"/>
+
+	<target name="pages.dar" depends="genii.compile">
+		<jar destfile="${dpages.dir}/pages.dar">
+			<metainf dir="${obj.dir}/edu/virginia/vcgr/genii/pages/META-INF">
+				<include name="**/*"/>
+			</metainf>
+			<fileset dir="${obj.dir}">
+				<include name="edu/virginia/vcgr/genii/pages/**/*"/>
+				<exclude name="edu/virginia/vcgr/genii/pages/META-INF"/>
+			</fileset>
+		</jar>
+	</target>
+
+	<target name="genii.client.jar" depends="genii.compile, tests.compile">
+		<jar destfile="${lib.dir}/GenesisII-client.jar">
+			<fileset dir="${obj.dir}">
+				<include name="edu/virginia/osgi/**/*"/>
+				<include name="edu/virginia/vcgr/externalapp/**/*"/>
+				<include name="edu/virginia/vcgr/fsii/**/*"/>
+				<include name="edu/virginia/vcgr/fuse/**/*"/>
+				<include name="edu/virginia/vcgr/genii/client/**/*"/>
+				<include name="edu/virginia/vcgr/genii/cloud/**/*"/>
+				<include name="edu/virginia/vcgr/genii/graph/**/*"/>
+				<include name="edu/virginia/vcgr/genii/network/**/*"/>
+				<include name="edu/virginia/vcgr/genii/security/**/*"/>
+				<include name="edu/virginia/vcgr/genii/ui/**/*"/>
+				<include name="edu/virginia/vcgr/secrun/**/*"/>
+				<exclude name="edu/virginia/vcgr/secrun/runnables/**/*"/>
+				<include name="edu/virginia/vcgr/xscript/**/*"/>
+			</fileset>
+		</jar>
+	</target>
+
+	<target name="ogrsh.jar" depends="ogrsh.compile.java">
+		<jar destfile="${lib.dir}/OGRSH.jar">
+			<fileset dir="${obj.dir}">
+				<include name="edu/virginia/vcgr/ogrsh/**/*"/>
+			</fileset>
+		</jar>
+	</target>
+
+	<target name="genii.ws" depends="genii.ws.jar,deployments"/>
+
+	<target name="genii.ws.jar" depends="genii.ws.compile">
+		<jar destfile="${lib.dir}/GenesisII-ws.jar">
+			<fileset dir="${generated.obj.dir}"/>
+		</jar>
+		<path id="genii.ws.classpath" path="${lib.dir}/GenesisII-ws.jar"/>
+	</target>
+
+	<target name="genii.wsdl.jar" depends="genii.wsdl.tools.compile">
+		<jar destfile="${lib.dir}/genii-wsdl.jar">
+			<fileset dir="${obj.dir}">
+				<include name="edu/virginia/vcgr/genii/wsdl/**/*"/>
+			</fileset>
+		</jar>
+		<path id="genii-wsdl.classpath" path="${lib.dir}/genii-wsdl.jar"/>
+	</target>
+
+	<target name="generate.ws.source" depends="genii.wsdl.tools">
+		<ant antfile="${wsdl.dir}/common.build.xml"/>
+		<ant antfile="${wsdl.dir}/geniiPullPoint.build.xml"/>
+		<ant antfile="${wsdl.dir}/subscription.build.xml"/>
+		<ant antfile="${wsdl.dir}/publisher-registration.build.xml"/>
+		<ant antfile="${wsdl.dir}/geniiWSNBroker.build.xml"/>
+		<ant antfile="${wsdl.dir}/rns/rns.build.xml"/>
+		<ant antfile="${wsdl.dir}/deployment/gapp-description.build.xml"/>
+		<ant antfile="${wsdl.dir}/deployment/deployer.build.xml"/>
+		<ant antfile="${wsdl.dir}/byteio/rbyteio.build.xml"/>
+		<ant antfile="${wsdl.dir}/byteio/sbyteio.build.xml"/>
+		<ant antfile="${wsdl.dir}/byteio/sbyteio-factory.build.xml"/>
+		<ant antfile="${wsdl.dir}/exported/exported-file.build.xml"/>
+		<ant antfile="${wsdl.dir}/exported/exported-dir.build.xml"/>
+		<ant antfile="${wsdl.dir}/exported/exported-root.build.xml"/>
+		<ant antfile="${wsdl.dir}/rfork/rfork.build.xml"/>
+		<ant antfile="${wsdl.dir}/container/container.build.xml"/>
+		<ant antfile="${wsdl.dir}/exported/light-export.build.xml"/>
+		<ant antfile="${wsdl.dir}/exported/fsproxy.build.xml"/>
+		<ant antfile="${wsdl.dir}/bes/bes-activity.build.xml"/>
+		<ant antfile="${wsdl.dir}/bes/bes.build.xml"/>
+		<ant antfile="${wsdl.dir}/naming.build.xml"/>
+		<ant antfile="${wsdl.dir}/authn/x509-authn.build.xml"/>
+		<ant antfile="${wsdl.dir}/authn/jndi-authn.build.xml"/>
+		<ant antfile="${wsdl.dir}/authn/kerb-authn.build.xml"/>
+		<ant antfile="${wsdl.dir}/resolver/genii-resolver.build.xml"/>
+		<ant antfile="${wsdl.dir}/queue/queue.build.xml"/>
+		<ant antfile="${wsdl.dir}/certGenerator/certGenerator.build.xml"/>
+		<ant antfile="${wsdl.dir}/tty/tty.build.xml"/>
+		<ant antfile="${wsdl.dir}/pipe/pipe.build.xml"/>
+		<ant antfile="${wsdl.dir}/iterator/ws-iterator.build.xml"/>
+		<ant antfile="${wsdl.dir}/replicatedExport/rexport-file.build.xml"/>
+		<ant antfile="${wsdl.dir}/replicatedExport/rexport-dir.build.xml"/>
+		<ant antfile="${wsdl.dir}/replicatedExport/rexport-resolver.build.xml"/>
+		<ant antfile="${wsdl.dir}/replicatedExport/rexport-resolver-factory.build.xml"/>
+		<ant antfile="${wsdl.dir}/notification/enhancednbfactory.build.xml"/>
+		<ant antfile="${wsdl.dir}/notification/enhancednb.build.xml"/>
+	</target>
+
+	<target name="genii.wsdl.tools"
+		depends="genii.wsdl.jar">
+		<path id="wsdl-tools.classpath">
+			<path refid="gffs-security.classpath"/>
+			<path refid="genii-wsdl.classpath"/>
+		</path>
+		<taskdef
+			resource="edu/virginia/vcgr/genii/wsdl/ant/ant-tasks.properties"
+			classpathref="wsdl-tools.classpath"/>
+	</target>
+
+	<target name="genii.compile" depends="init,genii.ws">
+		<javac debug="${debug.on}" destdir="${obj.dir}"
+			includeAntRuntime="${include.ant.runtime}">
+			<src path="${src.dir}"/>
+			<classpath refid="project.classpath"/>
+			<classpath refid="genii.ws.classpath"/>
+			<include name="**/*.java"/>
+			<exclude name="**/edu/virginia/vcgr/genii/container/factory/**/*.java"/>
+		</javac>
+		<copy todir="${obj.dir}">
+			<fileset dir="${src.dir}">
+				<include name="${default.compile.copy.includes}"/>
+				<include name="edu/virginia/vcgr/genii/client/cmd/tools/description/*"/>
+				<include name="edu/virginia/vcgr/genii/client/cmd/tools/man/*"/>
+				<include name="edu/virginia/vcgr/genii/client/cmd/tools/usage/*"/>
+			</fileset>
+		</copy>
+<!-- turned off since maybe not needed again.
+		<copy todir="${bundles.home}/endorsed">
+			<fileset dir="${ext.dir}">
+				<include name="xmlsec*jar" />
+			</fileset>
+			<fileset dir="${bundles.home}">
+				<include name="*log4j*jar" />
+				<include name="*commons*loggi*jar" />
+			</fileset>
+		</copy>
+-->
+	</target>
+
+	<target name="tests.compile" depends="genii.compile">
+		<javac debug="${debug.on}" destdir="${obj.dir}" includeAntRuntime="${include.ant.runtime}">
+			<src path="${tests.dir}"/>
+			<classpath refid="project.classpath"/>
+			<classpath refid="genii.ws.classpath"/>
+			<include name="**/*.java"/>
+		</javac>
+	</target>
+
+	<target name="genii.ws.compile" depends="generate.ws.source">
+		<javac debug="${debug.on}" destdir="${generated.obj.dir}"
+			includeAntRuntime="${include.ant.runtime}">
+			<src path="${generated.source.dir}"/>
+			<classpath refid="project.classpath"/>
+		</javac>
+	</target>
+
+	<target name="genii.wsdl.tools.compile" depends="init">
+		<javac debug="${debug.on}" destdir="${obj.dir}"
+			includeAntRuntime="${include.ant.runtime}">
+			<src path="${src.dir}"/>
+			<include name="edu/virginia/vcgr/genii/wsdl/**/*.java"/>
+			<classpath refid="gffs-security.classpath"/>
+		</javac>
+		<copy todir="${obj.dir}">
+			<fileset dir="${src.dir}"
+				includes="${default.compile.copy.includes}"/>
+		</copy>
+	</target>
+
+<!--
+	<target name="morgan.compile" depends="init">
+		<javac debug="${debug.on}" destdir="${obj.dir}"
+			includeAntRuntime="${include.ant.runtime}">
+			<src path="${src.dir}"/>
+			<classpath refid="bundles.classpath"/>
+			<classpath refid="project.classpath"/>
+			<include name="org/morgan/**/*.java"/>
+		</javac>
+		<copy todir="${obj.dir}">
+			<fileset dir="${src.dir}"
+				includes="${default.compile.copy.includes}"/>
+		</copy>
+	</target>
+-->
+
+	<target name="ogrsh.compile.java" depends="init">
+		<javac debug="${debug.on}" destdir="${obj.dir}"
+			includeAntRuntime="${include.ant.runtime}">
+			<src path="${src.dir}"/>
+			<classpath refid="bundles.classpath"/>
+			<include name="edu/virginia/vcgr/ogrsh/**/*.java"/>
+		</javac>
+		<copy todir="${obj.dir}">
+			<fileset dir="${src.dir}"
+				includes="${default.compile.copy.includes}"/>
+		</copy>
+	</target>
+
+	<target name="clean">
+		<delete dir="${temporary.codegen.dir}"/>
+		<delete dir="${wsdd.dir}"/>
+		<delete dir="${dpages.dir}"/>
+		<delete dir="${generated.source.dir}"/>
+		<delete dir="${generated.obj.dir}"/>
+		<delete dir="${obj.dir}"/>
+		<delete dir="${deployments.dir}/default/services" quiet="true"/>
+		<delete quiet="true">
+			<fileset dir="${lib.dir}" includes="**/*.jar"/>
+		</delete>
+		<delete dir="${services.dir}"/>
+		<delete file="${basedir}/jserver.sh"/>
+		<delete file="${basedir}/runContainer.sh"/>
+		<delete file="${basedir}/runContainer.bat"/>
+		<delete file="${basedir}/grid"/>
+		<delete file="${basedir}/grid.bat"/>
+		<delete file="${basedir}/cert-tool"/>
+		<delete file="${basedir}/cert-tool.bat"/>
+		<delete file="${basedir}/jar-desc.xml"/>
+		<delete file="${basedir}/jserver-jar-desc.xml"/>
+		<delete>
+			<fileset dir="${basedir}/ApplicationWatcher"
+				includes="**/*.properties"/>
+		</delete>
+		<delete>
+			<fileset dir="${basedir}"
+				includes="**/*.log"/>
+			<fileset dir="${basedir}"
+				includes="**/*.log.*" />
+			<fileset dir="${basedir}/installer/install4j"
+				includes="Media/**/*" />
+			<fileset dir="${bundles.home}"
+				includes="endorsed/**/*" />
+			<fileset dir="${basedir}"
+				includes="unit-test-reports/**/*" />
+		</delete>
+		<antcall target="clean-all-scripts" />
+	</target>
+	
+	<target name="init.secrun">
+		<property file="${basedir}/build.secrun.properties"/>
+		<mkdir dir="${secrun.scratch.dir}"/>
+		<input
+			message="Input password for certificate store ${secrun.certstore}?"
+			addproperty="secrun.storepass"/>
+	</target>
+
+	<target name="secrun.test" depends="init.secrun,genii.compile">
+		<mkdir dir="${secrun.scratch.dir}/test"/>
+		<copy todir="${secrun.scratch.dir}/test">
+			<fileset dir="${obj.dir}">
+				<include name="${runnables.class.path}/test/**/*"/>
+				<exclude name="**/runnable-description.properties"/>
+			</fileset>
+		</copy>
+		<mkdir dir="${secrun.scratch.dir}/test/META-INF/secure-runnable"/>
+		<copy file="${runnables.obj.dir}/test/runnable-description.properties"
+			tofile="${secrun.scratch.dir}/test/META-INF/secure-runnable/runnable-description.properties"/>
+		<jar destfile="${secrun.scratch.dir}/TestSecRun.jar">
+			<fileset dir="${secrun.scratch.dir}/test">
+				<include name="**/*"/>
+			</fileset>
+		</jar>
+		<signjar jar="${secrun.scratch.dir}/TestSecRun.jar"
+			storetype="${secrun.storetype}"
+			alias="${secrun.storealias}"
+			keystore="${secrun.certstore}"
+			storepass="${secrun.storepass}"/>
+	</target>
+
+	<target name="secrun.contpreboot" depends="init.secrun,genii.compile">
+		<mkdir dir="${secrun.scratch.dir}/contpreboot"/>
+		<copy todir="${secrun.scratch.dir}/contpreboot">
+			<fileset dir="${obj.dir}">
+				<include name="${runnables.class.path}/contpreboot/**/*"/>
+				<exclude name="**/runnable-description.properties"/>
+			</fileset>
+		</copy>
+		<mkdir dir="${secrun.scratch.dir}/contpreboot/META-INF/secure-runnable"/>
+		<copy file="${runnables.obj.dir}/contpreboot/runnable-description.properties"
+			tofile="${secrun.scratch.dir}/contpreboot/META-INF/secure-runnable/runnable-description.properties"/>
+		<jar destfile="${secrun.scratch.dir}/ContainerPreBootSecRun.jar">
+			<fileset dir="${secrun.scratch.dir}/contpreboot">
+				<include name="**/*"/>
+			</fileset>
+		</jar>
+		<signjar jar="${secrun.scratch.dir}/ContainerPreBootSecRun.jar"
+			storetype="${secrun.storetype}"
+			alias="${secrun.storealias}"
+			keystore="${secrun.certstore}"
+			storepass="${secrun.storepass}"/>
+	</target>
+
+	<target name="secrun.contpostboot" depends="init.secrun,genii.compile">
+		<mkdir dir="${secrun.scratch.dir}/contpostboot"/>
+		<copy todir="${secrun.scratch.dir}/contpostboot">
+			<fileset dir="${obj.dir}">
+				<include name="${runnables.class.path}/contpostboot/**/*"/>
+				<exclude name="**/runnable-description.properties"/>
+			</fileset>
+		</copy>
+		<mkdir dir="${secrun.scratch.dir}/contpostboot/META-INF/secure-runnable"/>
+		<copy file="${runnables.obj.dir}/contpostboot/runnable-description.properties"
+			tofile="${secrun.scratch.dir}/contpostboot/META-INF/secure-runnable/runnable-description.properties"/>
+		<jar destfile="${secrun.scratch.dir}/ContainerPostBootSecRun.jar">
+			<fileset dir="${secrun.scratch.dir}/contpostboot">
+				<include name="**/*"/>
+			</fileset>
+		</jar>
+		<signjar jar="${secrun.scratch.dir}/ContainerPostBootSecRun.jar"
+			storetype="${secrun.storetype}"
+			alias="${secrun.storealias}"
+			keystore="${secrun.certstore}"
+			storepass="${secrun.storepass}"/>
+	</target>
+
+	<target name="register-ifs">
+		<copy file="${basedir}/jni-libs/win32/IFS/nulmrx.sys"
+			tofile="${env.SystemRoot}/system32/drivers/nulmrx.sys"/>
+		<copy file="${basedir}/jni-libs/win32/IFS/nulmrxnp.dll"
+			tofile="${env.SystemRoot}/system32/nulmrxnp.dll"/>
+		<copy file="${basedir}/jni-libs/win32/IFS/GenesisIFSServer.exe"
+			tofile="${basedir}/GenesisIFSServer.exe"/>
+
+		<exec executable="cmd">
+			<arg value="/c"/>
+			<arg value="&quot;${basedir}/jni-libs/win32/IFS/editRegistry.bat&quot;"/>
+			<arg value="&quot;${basedir}&quot;"/>
+  		</exec>
+	</target>
+
+	<target name="secrun" depends="secrun.test, secrun.contpreboot, secrun.contpostboot"/>
+
+	<target name="api-doc" depends="build">
+		<javadoc destdir="${basedir}/api-doc">
+			<fileset dir="${basedir}/src">
+				<include name="edu/virginia/vcgr/genii/client/**/*.java"/>
+			</fileset>
+		</javadoc>
+	</target>
+
+	<target name="run.unit.tests" description="Run All Unit Tests" depends="tests.compile">
+		<mkdir dir="unit-test-reports/raw" />
+		<junit printsummary="true" failureproperty="junit.failure" fork="yes">
+			<sysproperty key="baseDir" value="${basedir}" />
+			<classpath refid="project.classpath" />
+			<batchtest todir="unit-test-reports/raw">
+				<fileset dir="${tests.dir}">
+<!--				<exclude name="com/inovasolutions/net/ssh/TestMultipleActivities.java" />
+				<exclude name="com/inovasolutions/net/ssh/TestPatterns.java" /> -->
+				</fileset>
+				<formatter type="xml" />
+			</batchtest>
+		</junit>
+		<junitreport todir="unit-test-reports">
+			<fileset dir="unit-test-reports/raw" />
+			<report todir="unit-test-reports" />
+		</junitreport>
+		<fail if="junit.failure" message="Unit test(s) failed.  Check out the test reports." />
+	</target>
+
+</project>
